@@ -1,0 +1,81 @@
+// Studio Créatif Bamako — Schéma de données
+// Plateforme de génération de contenu IA pour créateurs locaux
+//
+// ⚠️ POUR PASSER DE SQLITE → POSTGRESQL :
+//   1. Change le provider ci-dessous de "sqlite" à "postgresql"
+//   2. Décommente les @db.Text sur les champs texte longs (optimisation PostgreSQL)
+//   3. Lance : bun run db:push
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  DÉVELOPPEMENT LOCAL (SQLite) — par défaut
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  PRODUCTION VERCEL (PostgreSQL)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 1. Commente les 2 lignes sqlite ci-dessus
+  // 2. Décommente les 2 lignes postgresql ci-dessous
+  // 3. Décommente les @db.Text dans ContenuGenere (3 champs)
+  // 4. DATABASE_URL = URL PostgreSQL Neon/Supabase
+  // 5. Lance : bun run db:push
+  //
+  // provider = "postgresql"
+  // url      = env("DATABASE_URL")
+}
+
+model User {
+  id                     String          @id @default(cuid())
+  nom                    String
+  email                  String?         @unique
+  whatsapp               String?
+  typeCreation           String          @default("entrepreneur") // musicien | designer | entrepreneur | formateur
+  quotaMensuelRestant    Int             @default(3) // 3 générations gratuites / mois pour le MVP
+  dateInscription        DateTime        @default(now())
+  contenusGeneres        ContenuGenere[]
+  abonnements            Abonnement[]
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  @@index([email])
+  @@index([whatsapp])
+}
+
+model ContenuGenere {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          String   // bio | post | script | image | video | calendrier | tendances | hooks-gen | hook-optimizer | sons-tiktok
+  titre         String?
+  texteGenere   String?  // pour contenu texte (long) — @db.Text en PostgreSQL
+  base64Image   String?  // pour image générée (data URL volumineux) — @db.Text en PostgreSQL
+  videoUrl      String?  // pour vidéo générée (URL externe Gemini)
+  metadonnees   String?  // JSON stringifié (formulaire d'entrée, options) — @db.Text en PostgreSQL
+  apiUtilisee   String?  // gpt-5 | grok | kimi | gemini-imagen | gemini-veo
+  dateCreation  DateTime @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([dateCreation])
+}
+
+model Abonnement {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan            String   @default("gratuit") // gratuit | payant
+  dateDebut       DateTime @default(now())
+  dateFin         DateTime?
+  statutPaiement  String   @default("none") // none | en_attente | paye | echoue
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([statutPaiement])
+}
