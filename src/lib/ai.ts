@@ -9,29 +9,46 @@ import path from 'path';
 export type AIProvider = 'gpt-5' | 'grok' | 'kimi' | 'gemini-imagen' | 'gemini-veo';
 
 let zaiInstance: Awaited<ReturnType<typeof ZAI.create>> | null = null;
+let configInitialized = false;
 
-async function getZAI() {
-  if (zaiInstance) return zaiInstance;
+function initZAIConfig() {
+  if (configInitialized) return;
+  configInitialized = true;
 
-  // Sur Vercel (production), utiliser les variables d'environnement
-  // Le SDK ZAI cherche un fichier .z-ai-config, on le crée temporairement si besoin
-  if (process.env.ZAI_API_KEY && !fs.existsSync('.z-ai-config')) {
+  // Si un .z-ai-config existe déjà, on l'utilise
+  if (fs.existsSync('.z-ai-config')) return;
+
+  // Sur Vercel (production), créer le fichier .z-ai-config à partir des variables d'env
+  if (process.env.ZAI_API_KEY) {
     const config = {
       baseUrl: process.env.ZAI_BASE_URL || 'https://api.z.ai/api/v1',
       apiKey: process.env.ZAI_API_KEY,
       chatId: process.env.ZAI_CHAT_ID || 'studio-creatif-bamako',
       userId: process.env.ZAI_USER_ID || 'production',
     };
+    const configContent = JSON.stringify(config, null, 2);
     try {
-      fs.writeFileSync('.z-ai-config', JSON.stringify(config, null, 2));
+      // Essayer d'écrire dans le dossier courant
+      fs.writeFileSync('.z-ai-config', configContent);
+      console.log('[ZAI] Config written to .z-ai-config');
     } catch (e) {
-      // En lecture seule (Vercel build), on écrit dans /tmp
-      const tmpPath = path.join('/tmp', '.z-ai-config');
-      fs.writeFileSync(tmpPath, JSON.stringify(config, null, 2));
-      process.chdir('/tmp');
+      // Si read-only (Vercel build), écrire dans /tmp
+      try {
+        const tmpPath = '/tmp/.z-ai-config';
+        fs.writeFileSync(tmpPath, configContent);
+        console.log('[ZAI] Config written to /tmp/.z-ai-config');
+      } catch (e2) {
+        console.error('[ZAI] Could not write config file:', e2);
+      }
     }
+  } else {
+    console.warn('[ZAI] No ZAI_API_KEY environment variable found');
   }
+}
 
+async function getZAI() {
+  if (zaiInstance) return zaiInstance;
+  initZAIConfig();
   zaiInstance = await ZAI.create();
   return zaiInstance;
 }
@@ -69,7 +86,7 @@ export async function generateText(
         model: provider,
       });
 
-      const content = completion.choices[0]?.message?.content;
+      const content = completion.choices?.[0]?.message?.content;
       if (content && content.trim().length > 0) {
         return { content: content.trim(), provider };
       }
@@ -78,7 +95,6 @@ export async function generateText(
       const msg = err instanceof Error ? err.message : String(err);
       console.warn(`[AI fallback] ${provider} a échoué: ${msg}`);
       lastError = err instanceof Error ? err : new Error(msg);
-      // On tente le provider suivant
     }
   }
 
@@ -100,7 +116,7 @@ export async function generateImage(
       prompt,
       size,
     });
-    const base64 = response.data[0]?.base64;
+    const base64 = response.data?.[0]?.base64;
     if (!base64) throw new Error('Image vide renvoyée par Gemini');
     return { base64, provider: 'gemini-imagen' };
   } catch (err) {
@@ -129,6 +145,8 @@ export async function generateVideo(
       fps: 30,
       duration,
     });
+
+    if (!task?.id) throw new Error('Task ID manquant dans la réponse Gemini');
 
     // Polling asynchrone (max 5 minutes)
     const maxPolls = 60;
