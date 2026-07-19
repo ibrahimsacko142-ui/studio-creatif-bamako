@@ -1,0 +1,65 @@
+// Studio Créatif Bamako — Schéma PRODUCTION (PostgreSQL)
+// ⚠️ REMPLACE prisma/schema.prisma PAR CE FICHIER avant déploiement Vercel
+//
+// Étapes :
+//   cp prisma/schema.postgres.prisma prisma/schema.prisma
+//   bun run db:push   # avec DATABASE_URL=postgresql://... dans .env
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                     String          @id @default(cuid())
+  nom                    String
+  email                  String?         @unique
+  whatsapp               String?
+  typeCreation           String          @default("entrepreneur")
+  quotaMensuelRestant    Int             @default(3)
+  dateInscription        DateTime        @default(now())
+  contenusGeneres        ContenuGenere[]
+  abonnements            Abonnement[]
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  @@index([email])
+  @@index([whatsapp])
+}
+
+model ContenuGenere {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          String
+  titre         String?
+  texteGenere   String?  @db.Text
+  base64Image   String?  @db.Text
+  videoUrl      String?
+  metadonnees   String?  @db.Text
+  apiUtilisee   String?
+  dateCreation  DateTime @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([dateCreation])
+}
+
+model Abonnement {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan            String   @default("gratuit")
+  dateDebut       DateTime @default(now())
+  dateFin         DateTime?
+  statutPaiement  String   @default("none")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([statutPaiement])
+}
