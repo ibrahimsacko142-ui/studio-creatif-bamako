@@ -1,0 +1,39 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "bun run build",
+  "installCommand": "bun install",
+  "regions": ["fra1"],
+  "functions": {
+    "src/app/api/generate/video/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/generate/image/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/generate/bio/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/generate/posts/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/generate/script/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/generate/calendrier/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/generate/tendances/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/generate/hooks-gen/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/generate/hook-optimizer/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/generate/sons-tiktok/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
